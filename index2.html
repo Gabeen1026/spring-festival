@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>서울 벚꽃 명소 지도</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    :root {
+      --bg: #fff8fb;
+      --panel: #ffffff;
+      --text: #1e1b4b;
+      --muted: #64748b;
+      --sakura: #f9a8d4;
+      --sakura-deep: #ec4899;
+      --leaf: #86efac;
+      --line: rgba(236, 72, 153, 0.15);
+      --shadow: 0 12px 40px rgba(236, 72, 153, 0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      background: linear-gradient(180deg, #fff0f7 0%, var(--bg) 45%, #f0fdf4 100%);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .wrap { width: min(1100px, 94%); margin: 0 auto; }
+
+    header {
+      padding: 28px 0 8px;
+      text-align: center;
+    }
+    header h1 {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(120deg, #be185d, #ec4899, #f472b6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    header p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .map-section {
+      padding: 24px 0 40px;
+    }
+    .map-section h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: #831843;
+    }
+    #map {
+      height: min(420px, 58vh);
+      width: 100%;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      z-index: 1;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      font-family: inherit;
+    }
+    .leaflet-popup-content { margin: 12px 14px; line-height: 1.5; }
+
+    .leaflet-marker-icon.sakura-marker {
+      background: transparent !important;
+      border: none !important;
+    }
+    .sakura-marker-inner {
+      display: block;
+      line-height: 0;
+      filter: drop-shadow(0 2px 5px rgba(236, 72, 153, 0.55));
+    }
+    .sakura-marker-inner svg {
+      display: block;
+    }
+
+    .cards-section {
+      padding: 0 0 56px;
+    }
+    .cards-section h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      color: #831843;
+      text-align: center;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    a.card-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .card {
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 24px rgba(190, 24, 93, 0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.35s ease;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(236, 72, 153, 0.12);
+    }
+    .card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #9d174d;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h3::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--sakura), var(--sakura-deep));
+      flex-shrink: 0;
+    }
+    .card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.65;
+      text-align: justify;
+      text-justify: inter-word;
+    }
+    .card-img-wrap {
+      margin-top: 14px;
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 4 / 3;
+      background: #f1f5f9;
+      border: 1px solid rgba(236, 72, 153, 0.12);
+    }
+    .card-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+    .card.card--flash {
+      animation: cardFlash 1.5s ease;
+    }
+    @keyframes cardFlash {
+      0%, 100% {
+        border-color: rgba(236, 72, 153, 0.15);
+        box-shadow: 0 4px 24px rgba(190, 24, 93, 0.06);
+      }
+      18%, 72% {
+        border-color: #ec4899;
+        box-shadow: 0 4px 28px rgba(236, 72, 153, 0.22);
+      }
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    @media (max-width: 600px) {
+      .card-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>서울 봄꽃 · 벚꽃 명소</h1>
+      <p>대표적인 벚꽃 스폿 6곳을 지도에서 확인하고, 아래 카드에서 간단히 살펴보세요.</p>
+    </div>
+  </header>
+
+  <section class="map-section wrap" aria-labelledby="map-heading">
+    <h2 id="map-heading">서울 지도</h2>
+    <div id="map" role="application" aria-label="서울 벚꽃 명소 위치 지도"></div>
+  </section>
+
+  <section class="cards-section wrap" aria-labelledby="spots-heading">
+    <h2 id="spots-heading">명소 안내</h2>
+    <div class="card-grid">
+      <a class="card-link" id="spot-0" href="detail-gyeongbok.html">
+        <article class="card">
+          <h3>경복궁</h3>
+          <p>조선 왕궁과 봄꽃이 어우러진 대표 코스입니다. 궁궐 담장과 연못 주변에서 인생샷을 남기기 좋습니다.</p>
+          <div class="card-img-wrap">
+            <img src="asset/경복궁.jpg" alt="경복궁 벚꽃 풍경" width="400" height="300" loading="lazy" decoding="async" />
+          </div>
+        </article>
+      </a>
+      <a class="card-link" id="spot-1" href="detail-namsan.html">
+        <article class="card">
+          <h3>남산타워</h3>
+          <p>남산 일대 산책로와 타워 주변에서 벚꽃을 즐길 수 있습니다. 야경과 함께 보는 봄밤도 인기입니다.</p>
+          <div class="card-img-wrap">
+            <img src="asset/남산타워.jpg" alt="남산타워 일대 벚꽃" width="400" height="300" loading="lazy" decoding="async" />
+          </div>
+        </article>
+      </a>
+      <a class="card-link" id="spot-2" href="detail-yeouido.html">
+        <article class="card">
+          <h3>여의도</h3>
+          <p>윤중로 일대의 벚꽃 터널이 유명합니다. 봄마다 열리는 벚꽃 축제로 많은 방문객이 찾습니다.</p>
+          <div class="card-img-wrap">
+            <img src="asset/여의도.jpg" alt="여의도 벚꽃" width="400" height="300" loading="lazy" decoding="async" />
+          </div>
+        </article>
+      </a>
+      <a class="card-link" id="spot-3" href="detail-children.html">
+        <article class="card">
+          <h3>어린이대공원</h3>
+          <p>넓은 잔디와 호수, 산책로 곳곳에 벚꽃이 펼쳐져 가족 나들이에 잘 어울립니다.</p>
+          <div class="card-img-wrap">
+            <img src="asset/어린이대공원.jpg" alt="어린이대공원 벚꽃" width="400" height="300" loading="lazy" decoding="async" />
+          </div>
+        </article>
+      </a>
+      <a class="card-link" id="spot-4" href="detail-seoulforest.html">
+        <article class="card">
+          <h3>서울숲</h3>
+          <p>도심 속 숲과 개울, 벚꽃이 어우러진 산책 코스가 매력적입니다. 자전거·피크닉과 함께 즐기기 좋습니다.</p>
+          <div class="card-img-wrap">
+            <img src="asset/서울숲.jpg" alt="서울숲 벚꽃 산책로" width="400" height="300" loading="lazy" decoding="async" />
+          </div>
+        </article>
+      </a>
+      <a class="card-link" id="spot-5" href="detail-seokchon.html">
+        <article class="card">
+          <h3>잠실 석촌호수</h3>
+          <p>호수를 둘러싼 벚꽃과 롯데월드타워가 함께 보이는 풍경이 독특합니다. 산책과 사진 명소로 알려져 있습니다.</p>
+          <div class="card-img-wrap">
+            <img src="asset/잠실 석촌호수.jpg" alt="잠실 석촌호수 벚꽃" width="400" height="300" loading="lazy" decoding="async" />
+          </div>
+        </article>
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <p>지도: OpenStreetMap · Leaflet · 위치는 참고용입니다.</p>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    (function () {
+      var spots = [
+        { name: "경복궁", lat: 37.579617, lng: 126.977041, note: "궁궐과 어우러진 벚꽃" },
+        { name: "남산타워", lat: 37.551169, lng: 126.988227, note: "남산 봄꽃 산책" },
+        { name: "여의도", lat: 37.52195, lng: 126.924361, note: "윤중로 벚꽃길" },
+        { name: "어린이대공원", lat: 37.548292, lng: 127.080857, note: "호수·잔디 벚꽃" },
+        { name: "서울숲", lat: 37.544319, lng: 127.037756, note: "숲길 벚꽃 코스" },
+        { name: "잠실 석촌호수", lat: 37.511234, lng: 127.098167, note: "호수·타워 뷰" }
+      ];
+
+      var map = L.map("map", { scrollWheelZoom: true });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(map);
+
+      var bounds = [];
+      var sakuraIconHtml =
+        '<span class="sakura-marker-inner">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="38" height="38" focusable="false" aria-hidden="true">' +
+        '<g transform="translate(16,16)">' +
+        '<g transform="rotate(0)"><ellipse cx="0" cy="-5.2" rx="4.2" ry="6.8" fill="#fbcfe8" stroke="#fff" stroke-width="1.15"/></g>' +
+        '<g transform="rotate(72)"><ellipse cx="0" cy="-5.2" rx="4.2" ry="6.8" fill="#f9a8d4" stroke="#fff" stroke-width="1.15"/></g>' +
+        '<g transform="rotate(144)"><ellipse cx="0" cy="-5.2" rx="4.2" ry="6.8" fill="#f472b6" stroke="#fff" stroke-width="1.15"/></g>' +
+        '<g transform="rotate(216)"><ellipse cx="0" cy="-5.2" rx="4.2" ry="6.8" fill="#f9a8d4" stroke="#fff" stroke-width="1.15"/></g>' +
+        '<g transform="rotate(288)"><ellipse cx="0" cy="-5.2" rx="4.2" ry="6.8" fill="#fbcfe8" stroke="#fff" stroke-width="1.15"/></g>' +
+        '<circle r="2.8" fill="#fff1f2" stroke="#fff" stroke-width="0.95"/>' +
+        "</g></svg></span>";
+      var icon = L.divIcon({
+        className: "sakura-marker",
+        html: sakuraIconHtml,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
+        popupAnchor: [0, -17]
+      });
+
+      function scrollToCard(index) {
+        var link = document.getElementById("spot-" + index);
+        if (!link) return;
+        var card = link.querySelector(".card");
+        if (!card) return;
+        link.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.remove("card--flash");
+        void card.offsetWidth;
+        card.classList.add("card--flash");
+        card.addEventListener(
+          "animationend",
+          function onEnd() {
+            card.classList.remove("card--flash");
+            card.removeEventListener("animationend", onEnd);
+          },
+          { once: true }
+        );
+      }
+
+      spots.forEach(function (s, i) {
+        bounds.push([s.lat, s.lng]);
+        var marker = L.marker([s.lat, s.lng], { icon: icon })
+          .addTo(map)
+          .bindPopup("<strong>" + s.name + "</strong><br>" + s.note);
+        marker.on("click", function () {
+          scrollToCard(i);
+        });
+      });
+
+      map.fitBounds(bounds, { padding: [48, 48], maxZoom: 12 });
+    })();
+  </script>
+</body>
+</html>
